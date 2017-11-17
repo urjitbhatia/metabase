@@ -22,11 +22,12 @@
              [permissions-group :as perms-group]
              [setting :as setting :refer [defsetting]]]
             [metabase.util.urls :as urls]
+            [puppetlabs.i18n.core :as i18n :refer [tru]]
             [throttle.core :as throttle]
             [toucan.db :as db]))
 
 (defsetting metabot-enabled
-  "Enable MetaBot, which lets you search for and view your saved questions directly via Slack."
+  (tru "Enable MetaBot, which lets you search for and view your saved questions directly via Slack.")
   :type    :boolean
   :default false)
 
@@ -70,6 +71,7 @@
                              dispatch-token) varr}))]
     (fn dispatch*
       ([]
+        ;; @maz: I'm not sure how to translate strings like this with variable references
        (keys-description (format "Here's what I can %s:" verb) fn-map))
       ([what & args]
        (if-let [f (fn-map (keyword what))]

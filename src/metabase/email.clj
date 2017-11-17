@@ -5,20 +5,27 @@
             [postal
              [core :as postal]
              [support :refer [make-props]]]
+            [puppetlabs.i18n.core :as i18n :refer [tru]]
             [schema.core :as s])
   (:import javax.mail.Session))
 
 ;;; CONFIG
 ;; TODO - smtp-port should be switched to type :integer
 
-(defsetting email-from-address  "Email address you want to use as the sender of Metabase." :default "notifications@metabase.com")
-(defsetting email-smtp-host     "The address of the SMTP server that handles your emails.")
-(defsetting email-smtp-username "SMTP username.")
-(defsetting email-smtp-password "SMTP password.")
-(defsetting email-smtp-port     "The port your SMTP server uses for outgoing emails.")
+(defsetting email-from-address
+  (tru "Email address you want to use as the sender of Metabase.")
+  :default "notifications@metabase.com")
+(defsetting email-smtp-host
+  (tru "The address of the SMTP server that handles your emails."))
+(defsetting email-smtp-username
+  (tru "SMTP username."))
+(defsetting email-smtp-password
+  (tru "SMTP password."))
+(defsetting email-smtp-port
+  (tru "The port your SMTP server uses for outgoing emails."))
 (defsetting email-smtp-security
-  "SMTP secure connection protocol. (tls, ssl, starttls, or none)"
-  :default "none"
+  (tru "SMTP secure connection protocol. (tls, ssl, starttls, or none)")
+  :default (tru "none")
   :setter  (fn [new-value]
              (when-not (nil? new-value)
                (assert (contains? #{"tls" "ssl" "none" "starttls"} new-value)))
@@ -64,7 +71,7 @@
   [{:keys [subject recipients message-type message]} :- EmailMessage]
   {:pre [(if (= message-type :attachments) (sequential? message) (string? message))]}
   (when-not (email-smtp-host)
-    (throw (Exception. "SMTP host is not set.")))
+    (throw (Exception. (tru "SMTP host is not set."))))
   ;; Now send the email
   (send-email! (smtp-settings)
     {:from    (email-from-address)
