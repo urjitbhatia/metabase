@@ -38,8 +38,8 @@
                                                (not (s/starts-with? new-value "http")) (str "http://"))))))
 
 (defsetting site-locale
-  (tru "The default language for this Metabase instance. This only applies to emails, Pulses, etc. Users' browsers will
-   specify the language used in the user interface.")
+  (str  (tru "The default language for this Metabase instance.")
+        (tru "This only applies to emails, Pulses, etc. Users' browsers will specify the language used in the user interface."))
   :type    :string
   :setter  (fn [new-value]
              (setting/set-string! :site-locale new-value)
@@ -93,29 +93,22 @@
   :default (* 60 60 24 100)) ; 100 days
 
 (defsetting query-caching-min-ttl
-  (tru "Metabase will cache all saved questions with an average query execution time longer than
-   this many seconds:")
+  (tru "Metabase will cache all saved questions with an average query execution time longer than this many seconds:")
   :type    :integer
   :default 60)
 
 (defsetting query-caching-ttl-ratio
-  (tru "To determine how long each saved question's cached result should stick around, we take the
-   query's average execution time and multiply that by whatever you input here. So if a query
-   takes on average 2 minutes to run, and you input 10 for your multiplier, its cache entry
-   will persist for 20 minutes.")
+  (tru "To determine how long each saved question's cached result should stick around, we take the query's average execution time and multiply that by whatever you input here. So if a query takes on average 2 minutes to run, and you input 10 for your multiplier, its cache entry will persist for 20 minutes.")
   :type    :integer
   :default 10)
 
 (defsetting breakout-bins-num
-  (tru "When using the default binning strategy and a number of bins is not
-   provided, this number will be used as the default.")
+  (tru "When using the default binning strategy and a number of bins is not provided, this number will be used as the default.")
   :type :integer
   :default 8)
 
 (defsetting breakout-bin-width
-  (tru "When using the default binning strategy for a field of type
-  Coordinate (such as Latitude and Longitude), this number will be used
-  as the default bin width (in degrees).")
+  (tru "When using the default binning strategy for a field of type Coordinate (such as Latitude and Longitude), this number will be used as the default bin width (in degrees).")
   :type :double
   :default 10.0)
 

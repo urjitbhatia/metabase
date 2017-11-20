@@ -71,12 +71,11 @@
                              dispatch-token) varr}))]
     (fn dispatch*
       ([]
-        ;; @maz: I'm not sure how to translate strings like this with variable references
-       (keys-description (format "Here's what I can %s:" verb) fn-map))
+       (keys-description (tru "Here's what I can {0}:" verb) fn-map))
       ([what & args]
        (if-let [f (fn-map (keyword what))]
          (apply f args)
-         (format "I don't know how to %s `%s`.\n%s"
+         (tru "I don't know how to {0} `{1}`.\n{2}"
                  verb
                  (if (instance? clojure.lang.Named what)
                    (name what)
