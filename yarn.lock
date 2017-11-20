@@ -4962,11 +4962,7 @@ js-managed-css@^1.4.1:
     gen-css-identifier "^1.0.0"
     insert-css "^0.2.0"
 
-js-tokens@^3.0.0:
-  version "3.0.1"
-  resolved "https://registry.yarnpkg.com/js-tokens/-/js-tokens-3.0.1.tgz#08e9f132484a2c45a30907e9dc4d5567b7f114d7"
-
-js-tokens@^3.0.2:
+js-tokens@^3.0.0, js-tokens@^3.0.2:
   version "3.0.2"
   resolved "https://registry.yarnpkg.com/js-tokens/-/js-tokens-3.0.2.tgz#9866df395102130e38f7f996bceb65443209c25b"
 
@@ -5238,8 +5234,8 @@ lcid@^1.0.0:
     invert-kv "^1.0.0"
 
 leaflet-draw@^0.4.12:
-  version "0.4.12"
-  resolved "https://registry.yarnpkg.com/leaflet-draw/-/leaflet-draw-0.4.12.tgz#04c9f3506e3b3a8a488ad389381331dc5b2affd8"
+  version "0.4.13"
+  resolved "https://registry.yarnpkg.com/leaflet-draw/-/leaflet-draw-0.4.13.tgz#b9467d8d6523edc5912e93727951005b77b62895"
 
 leaflet.heat@^0.2.0:
   version "0.2.0"
@@ -7736,20 +7732,22 @@ redux-actions@^2.2.1:
     reduce-reducers "^0.1.0"
 
 redux-auth-wrapper@^1.0.0:
-  version "1.0.0"
-  resolved "https://registry.yarnpkg.com/redux-auth-wrapper/-/redux-auth-wrapper-1.0.0.tgz#9aa16f8934563efe92f684b2ab201b4f01f50381"
+  version "1.1.0"
+  resolved "https://registry.yarnpkg.com/redux-auth-wrapper/-/redux-auth-wrapper-1.1.0.tgz#ccd4a753fe2134eb93c44f4e5781054577f6244a"
   dependencies:
     hoist-non-react-statics "1.2.0"
     lodash.isempty "4.4.0"
+    prop-types "15.5.8"
 
 redux-form@5:
-  version "5.3.4"
-  resolved "https://registry.yarnpkg.com/redux-form/-/redux-form-5.3.4.tgz#0536ec71daf919fc6ec93c9b39a9581213715980"
+  version "5.3.6"
+  resolved "https://registry.yarnpkg.com/redux-form/-/redux-form-5.3.6.tgz#f77a81dbf38d44d26ea411100a23f19e29cd1946"
   dependencies:
     deep-equal "^1.0.1"
     hoist-non-react-statics "^1.0.5"
     invariant "^2.0.0"
     is-promise "^2.1.0"
+    prop-types "^15.5.8"
     react-lazy-cache "^3.0.1"
 
 redux-logger@^3.0.6:
