@@ -3,6 +3,7 @@
   (:require [cheshire.core :as json]
             [clojure.string :as str]
             [medley.core :as m]
+            [metabase.types :as types]
             [metabase.util :as u]
             [metabase.util.password :as password]
             [schema.core :as s]))
@@ -111,16 +112,23 @@
   "Schema for something that can be either a `Keyword` or a `String`."
   (s/named (s/cond-pre s/Keyword s/Str) "Keyword or string"))
 
+(defn- isa-metabase-type?
+  "True if CHILD derives from the root type of the Metabase Hierarchical Type System (MHTS), `:type/*`. Unlike just
+   using `isa?` directly this also makes sure to reload any custom types that were dynamically defined at runtime."
+  [child]
+  (types/reload-custom-types!)
+  (isa? child :type/*))
+
 (def FieldType
   "Schema for a valid Field type (does it derive from `:type/*`)?"
-  (with-api-error-message (s/pred (u/rpartial isa? :type/*) "Valid field type")
+  (with-api-error-message (s/pred isa-metabase-type? "Valid field type")
     "value must be a valid field type."))
 
 (def FieldTypeKeywordOrString
   "Like `FieldType` (e.g. a valid derivative of `:type/*`) but allows either a keyword or a string.
    This is useful especially for validating API input or objects coming out of the DB as it is unlikely
    those values will be encoded as keywords at that point."
-  (with-api-error-message (s/pred #(isa? (keyword %) :type/*) "Valid field type (keyword or string)")
+  (with-api-error-message (s/pred (comp isa-metabase-type? keyword) "Valid field type (keyword or string)")
     "value must be a valid field type (keyword or string)."))
 
 (def Map

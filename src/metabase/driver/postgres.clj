@@ -1,10 +1,12 @@
 (ns metabase.driver.postgres
-  (:require [clojure
+  (:require [clojure.java.jdbc :as jdbc]
+            [clojure
              [set :as set :refer [rename-keys]]
              [string :as s]]
             [honeysql.core :as hsql]
             [metabase
              [driver :as driver]
+             [types :as types]
              [util :as u]]
             [metabase.db.spec :as dbspec]
             [metabase.driver.generic-sql :as sql]
@@ -13,8 +15,14 @@
              [ssh :as ssh]])
   (:import java.util.UUID))
 
-(def ^:private ^:const column->base-type
-  "Map of Postgres column types -> Field base types.
+(def ^:private ^:dynamic *enum-types*
+  "Bound to a set of keyword enum types defined for this Database. Bound by `sync-in-context` (see below). This is
+   used so we can properly tag things of enum types as `:type/PostgresEnum` derivatives when we fetch metadata about
+   Fields."
+  nil)
+
+(def ^:private ^:const default-base-types
+  "Map of default Postgres column types -> Field base types.
    Add more mappings here as you come across them."
   {:bigint        :type/BigInteger
    :bigserial     :type/BigInteger
@@ -74,6 +82,24 @@
    (keyword "time without time zone")     :type/Time
    (keyword "timestamp with timezone")    :type/DateTime
    (keyword "timestamp without timezone") :type/DateTime})
+
+(defn- enum-base-type
+  "If `column` is an enum type like `:color` or something we'll dynamically define it as a derivative of
+   `:type/PostgresEnum`. We'll give it a name like `:type/PostgresEnum.color`. This is effectively a way to
+   encode the name of the enum type inside the type keyword itself, since we'll need to use it for casting,
+   e.g. `?::color` in queries."
+  [column]
+  (when (contains? *enum-types* column)
+    (let [custom-type (keyword (str "type/PostgresEnum." (name column)))]
+      (types/add-custom-type! custom-type :type/PostgresEnum)
+      custom-type)))
+
+(defn- column->base-type
+  "Actual implementation of `column->base-type`. Takes into account `*enum-types*` when bound, otherwise falls
+   back to the static `default-base-types` map above."
+  [column]
+  (or (enum-base-type column)
+      (default-base-types column)))
 
 (defn- column->special-type
   "Attempt to determine the special-type of a Field given its name and Postgres column type."
@@ -171,16 +197,44 @@
     #".*" ; default
     message))
 
+(defn- enum-metabase-type->postgres-type
+  "Get the keyword name of Postgres type encoded within Metabase `enum-type`.
+
+     (enum-metabase-type->postgres-type :type/PostgresEnum.color) -> :color"
+  [enum-type]
+  (keyword (second (re-find #"^PostgresEnum\.(.+)$" (name enum-type)))))
+
 (defn- prepare-value [{value :value, {:keys [base-type]} :field}]
   (if-not value
     value
     (cond
-      (isa? base-type :type/UUID)      (UUID/fromString value)
-      (isa? base-type :type/IPAddress) (hx/cast :inet value)
-      :else                            value)))
+      (isa? base-type :type/UUID)         (UUID/fromString value)
+      (isa? base-type :type/IPAddress)    (hx/cast :inet value)
+      (isa? base-type :type/PostgresEnum) (hx/cast (enum-metabase-type->postgres-type base-type) value)
+      :else                               value)))
 
 (defn- string-length-fn [field-key]
   (hsql/call :char_length (hx/cast :VARCHAR field-key)))
+
+(defn- enum-types
+  "Fetch a set of the enum types associated with `database`.
+
+     (enum-types some-db) ; -> #{:bird_type :bird_status}"
+  [database]
+  (set
+   (map (comp keyword :typname)
+        (jdbc/query (connection-details->spec (:details database))
+                    [(str "SELECT DISTINCT t.typname "
+                          "FROM pg_enum e "
+                          "LEFT JOIN pg_type t "
+                          "  ON t.oid = e.enumtypid")]))))
+
+
+(defn- sync-in-context [database f]
+  ;; The only thing our implementation of `sync-in-context` does is fetch the enum types and bind them to
+  ;; `*enum-types*` so they're available when we map native column types -> MB types
+  (binding [*enum-types* (enum-types database)]
+    (f)))
 
 
 (defrecord PostgresDriver []
@@ -205,7 +259,8 @@
 (u/strict-extend PostgresDriver
   driver/IDriver
   (merge (sql/IDriverSQLDefaultsMixin)
-         {:date-interval                     (u/drop-first-arg date-interval)
+         {:current-db-time                   (driver/make-current-db-time-fn pg-date-formatter pg-db-time-query)
+          :date-interval                     (u/drop-first-arg date-interval)
           :details-fields                    (constantly (ssh/with-tunnel-config
                                                            [{:name         "host"
                                                              :display-name "Host"
@@ -234,7 +289,7 @@
                                                              :display-name "Additional JDBC connection string options"
                                                              :placeholder  "prepareThreshold=0"}]))
           :humanize-connection-error-message (u/drop-first-arg humanize-connection-error-message)
-          :current-db-time                   (driver/make-current-db-time-fn pg-date-formatter pg-db-time-query)})
+          :sync-in-context                   (u/drop-first-arg sync-in-context)})
 
   sql/ISQLDriver PostgresISQLDriverMixin)
 

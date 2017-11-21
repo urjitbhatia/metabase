@@ -9,12 +9,14 @@
              [util :as u]]
             [metabase.driver
              [generic-sql :as sql]
-             postgres]
+             [postgres :as postgres]]
             [metabase.models
              [database :refer [Database]]
              [field :refer [Field]]
              [table :refer [Table]]]
+            [metabase.query-processor :as qp]
             [metabase.query-processor.middleware.expand :as ql]
+            [metabase.sync.sync-metadata :as sync-metadata]
             [metabase.test
              [data :as data]
              [util :as tu]]
@@ -180,10 +182,6 @@
   {:tables #{{:schema "public", :name "test_mview"}}}
   (do
     (drop-if-exists-and-create-db! "materialized_views_test")
-    (jdbc/execute! (sql/connection-details->spec pg-driver (i/database->connection-details pg-driver :server nil))
-                   ["DROP DATABASE IF EXISTS materialized_views_test;
-                     CREATE DATABASE materialized_views_test;"]
-                   {:transaction? false})
     (let [details (i/database->connection-details pg-driver :db {:database-name "materialized_views_test"})]
       (jdbc/execute! (sql/connection-details->spec pg-driver details)
                      ["DROP MATERIALIZED VIEW IF EXISTS test_mview;
@@ -302,3 +300,91 @@
       (tt/with-temp Database [database {:engine :postgres, :details (assoc details :dbname "time_field_test")}]
         (sync/sync-database! database)
         (db/select [Field :name :fingerprint] :table_id (db/select-one-id Table :db_id (u/get-id database)))))))
+
+
+;;; +----------------------------------------------------------------------------------------------------------------+
+;;; |                                             POSTGRES ENUM SUPPORT                                              |
+;;; +----------------------------------------------------------------------------------------------------------------+
+
+(defn- enums-test-db-details [] (i/database->connection-details pg-driver :db {:database-name "enums_test"}))
+
+(defn- create-enums-db! []
+  (drop-if-exists-and-create-db! "enums_test")
+  (jdbc/with-db-connection [conn (sql/connection-details->spec pg-driver (enums-test-db-details))]
+    (doseq [sql ["CREATE TYPE bird_type AS ENUM ('toucan', 'pigeon', 'turkey');"
+                 "CREATE TYPE bird_status AS ENUM ('good bird', 'angry bird', 'delicious bird');"
+                 (str "CREATE TABLE birds ("
+                      "  name varchar PRIMARY KEY NOT NULL,"
+                      "  type bird_type NOT NULL,"
+                      "  status bird_status NOT NULL"
+                      ");")
+                 (str "INSERT INTO birds (\"name\", \"type\", status) VALUES"
+                      "  ('Rasta', 'toucan', 'good bird'),"
+                      "  ('Lucky', 'pigeon', 'angry bird'),"
+                      "  ('Theodore', 'turkey', 'delicious bird');")]]
+      (jdbc/execute! conn [sql]))))
+
+(defn- do-with-enums-db {:style/indent 0} [f]
+  (create-enums-db!)
+  (tt/with-temp Database [database {:engine :postgres, :details (enums-test-db-details)}]
+    (sync-metadata/sync-db-metadata! database)
+    (f database)))
+
+;; check that we can actually fetch the enum types from a DB
+(expect-with-engine :postgres
+  #{:bird_type :bird_status}
+  (do-with-enums-db
+    (fn [db]
+      (#'postgres/enum-types db))))
+
+;; check that when syncing the DB the enum types get recorded appropriately
+(expect-with-engine :postgres
+  #{#metabase.models.field.FieldInstance{:name "name",   :base_type :type/Text}
+    #metabase.models.field.FieldInstance{:name "type",   :base_type :type/PostgresEnum.bird_type}
+    #metabase.models.field.FieldInstance{:name "status", :base_type :type/PostgresEnum.bird_status}}
+  (do-with-enums-db
+    (fn [db]
+      (let [table-id (db/select-one-id Table :db_id (u/get-id db), :name "birds")]
+        (set (db/select [Field :name :base_type] :table_id table-id))))))
+
+;; check that the new enum types get recorded as derivatives of :type/PostgresEnum
+(expect-with-engine :postgres
+  [true true]
+  (do-with-enums-db
+   (fn [db]
+     [(isa? :type/PostgresEnum.bird_type   :type/PostgresEnum)
+      (isa? :type/PostgresEnum.bird_status :type/PostgresEnum)])))
+
+;; make sure we can correctly decode the name of the enum encoded in the MHTS type
+(expect-with-engine :postgres
+  :bird_status
+  (#'postgres/enum-metabase-type->postgres-type :type/PostgresEnum.bird_status))
+
+;; check that values for enum types get wrapped in appropriate CAST() fn calls in prepare-value
+(expect-with-engine :postgres
+  {:name :cast, :args ["toucan" {:s "bird_type"}]}
+  (do-with-enums-db
+    (fn [db]
+      (#'postgres/prepare-value {:field {:base-type :type/PostgresEnum.bird_type} :value "toucan"}))))
+
+;; End-to-end check: make sure everything works as expected when we run an actual query
+(expect-with-engine :postgres
+  {:rows        [["Rasta" "good bird" "toucan"]]
+   :native_form {:query  (str "SELECT \"public\".\"birds\".\"name\" AS \"name\","
+                              " \"public\".\"birds\".\"status\" AS \"status\","
+                              " \"public\".\"birds\".\"type\" AS \"type\" "
+                              "FROM \"public\".\"birds\" "
+                              "WHERE \"public\".\"birds\".\"type\" = CAST(? AS bird_type) "
+                              "LIMIT 10")
+                 :params ["toucan"]}}
+  (do-with-enums-db
+    (fn [db]
+      (let [table-id           (db/select-one-id Table :db_id (u/get-id db), :name "birds")
+            bird-type-field-id (db/select-one-id Field :table_id table-id, :name "type")]
+        (-> (qp/process-query {:database (u/get-id db)
+                               :type     :query
+                               :query    {:source-table table-id
+                                          :filter       [:= [:field-id bird-type-field-id] "toucan"]
+                                          :limit        10}})
+            :data
+            (select-keys [:rows :native_form]))))))
