@@ -210,7 +210,7 @@
     (cond
       (isa? base-type :type/UUID)         (UUID/fromString value)
       (isa? base-type :type/IPAddress)    (hx/cast :inet value)
-      (isa? base-type :type/PostgresEnum) (hx/cast (enum-metabase-type->postgres-type base-type) value)
+      (isa? base-type :type/PostgresEnum) (hx/quoted-cast (enum-metabase-type->postgres-type base-type) value)
       :else                               value)))
 
 (defn- string-length-fn [field-key]

@@ -311,11 +311,11 @@
 (defn- create-enums-db! []
   (drop-if-exists-and-create-db! "enums_test")
   (jdbc/with-db-connection [conn (sql/connection-details->spec pg-driver (enums-test-db-details))]
-    (doseq [sql ["CREATE TYPE bird_type AS ENUM ('toucan', 'pigeon', 'turkey');"
+    (doseq [sql ["CREATE TYPE \"bird type\" AS ENUM ('toucan', 'pigeon', 'turkey');"
                  "CREATE TYPE bird_status AS ENUM ('good bird', 'angry bird', 'delicious bird');"
                  (str "CREATE TABLE birds ("
                       "  name varchar PRIMARY KEY NOT NULL,"
-                      "  type bird_type NOT NULL,"
+                      "  type \"bird type\" NOT NULL,"
                       "  status bird_status NOT NULL"
                       ");")
                  (str "INSERT INTO birds (\"name\", \"type\", status) VALUES"
@@ -332,40 +332,47 @@
 
 ;; check that we can actually fetch the enum types from a DB
 (expect-with-engine :postgres
-  #{:bird_type :bird_status}
+  #{(keyword "bird type") :bird_status}
   (do-with-enums-db
     (fn [db]
       (#'postgres/enum-types db))))
 
 ;; check that when syncing the DB the enum types get recorded appropriately
 (expect-with-engine :postgres
-  #{#metabase.models.field.FieldInstance{:name "name",   :base_type :type/Text}
-    #metabase.models.field.FieldInstance{:name "type",   :base_type :type/PostgresEnum.bird_type}
-    #metabase.models.field.FieldInstance{:name "status", :base_type :type/PostgresEnum.bird_status}}
+  #{{:name "name",   :base_type :type/Text}
+    {:name "type",   :base_type (keyword "type/PostgresEnum.bird type")}
+    {:name "status", :base_type :type/PostgresEnum.bird_status}}
   (do-with-enums-db
     (fn [db]
       (let [table-id (db/select-one-id Table :db_id (u/get-id db), :name "birds")]
-        (set (db/select [Field :name :base_type] :table_id table-id))))))
+        (set
+         (map (partial into {})
+              (db/select [Field :name :base_type] :table_id table-id)))))))
 
 ;; check that the new enum types get recorded as derivatives of :type/PostgresEnum
 (expect-with-engine :postgres
   [true true]
   (do-with-enums-db
    (fn [db]
-     [(isa? :type/PostgresEnum.bird_type   :type/PostgresEnum)
-      (isa? :type/PostgresEnum.bird_status :type/PostgresEnum)])))
+     [(isa? (keyword "type/PostgresEnum.bird type") :type/PostgresEnum)
+      (isa? :type/PostgresEnum.bird_status          :type/PostgresEnum)])))
 
 ;; make sure we can correctly decode the name of the enum encoded in the MHTS type
 (expect-with-engine :postgres
   :bird_status
   (#'postgres/enum-metabase-type->postgres-type :type/PostgresEnum.bird_status))
 
+;; make sure it works with enum types with spaces as well
+(expect-with-engine :postgres
+  (keyword "bird type")
+  (#'postgres/enum-metabase-type->postgres-type (keyword "type/PostgresEnum.bird type")))
+
 ;; check that values for enum types get wrapped in appropriate CAST() fn calls in prepare-value
 (expect-with-engine :postgres
-  {:name :cast, :args ["toucan" {:s "bird_type"}]}
+  {:name :cast, :args ["toucan" (keyword "bird type")]}
   (do-with-enums-db
     (fn [db]
-      (#'postgres/prepare-value {:field {:base-type :type/PostgresEnum.bird_type} :value "toucan"}))))
+      (#'postgres/prepare-value {:field {:base-type (keyword "type/PostgresEnum.bird type")} :value "toucan"}))))
 
 ;; End-to-end check: make sure everything works as expected when we run an actual query
 (expect-with-engine :postgres
@@ -374,7 +381,7 @@
                               " \"public\".\"birds\".\"status\" AS \"status\","
                               " \"public\".\"birds\".\"type\" AS \"type\" "
                               "FROM \"public\".\"birds\" "
-                              "WHERE \"public\".\"birds\".\"type\" = CAST(? AS bird_type) "
+                              "WHERE \"public\".\"birds\".\"type\" = CAST(? AS \"bird type\") "
                               "LIMIT 10")
                  :params ["toucan"]}}
   (do-with-enums-db
