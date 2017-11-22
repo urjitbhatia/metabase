@@ -22,8 +22,7 @@
              [permissions-group :as perms-group]
              [setting :as setting :refer [defsetting]]]
             [metabase.util.urls :as urls]
-            [puppetlabs.i18n.core :as i18n :refer [tru]]
-            [puppetlabs.i18n.core :as i18n :refer [trs]]
+            [puppetlabs.i18n.core :refer [tru trs]]
             [throttle.core :as throttle]
             [toucan.db :as db]))
 
@@ -106,12 +105,12 @@
   [& _]
   (let [cards (with-metabot-permissions
                 (filterv mi/can-read? (db/select [Card :id :name :dataset_query], {:order-by [[:id :desc]], :limit 20})))]
-    (tru "Here's your " (count cards) " most recent cards:\n" (format-cards cards))))
+    (tru "Here's your {0} most recent cards:\n{1}" (count cards) (format-cards cards))))
 
 (defn- card-with-name [card-name]
   (first (u/prog1 (db/select [Card :id :name], :%lower.name [:like (str \% (str/lower-case card-name) \%)])
            (when (> (count <>) 1)
-             (throw (Exception. (tru "Could you be a little more specific? I found these cards with names that matched:\n"
+             (throw (Exception. (tru "Could you be a little more specific? I found these cards with names that matched:\n{0}"
                                      (format-cards <>))))))))
 
 (defn- id-or-name->card [card-id-or-name]

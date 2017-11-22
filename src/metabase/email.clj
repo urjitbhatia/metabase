@@ -5,7 +5,7 @@
             [postal
              [core :as postal]
              [support :refer [make-props]]]
-            [puppetlabs.i18n.core :as i18n :refer [tru]]
+            [puppetlabs.i18n.core :refer [tru]]
             [schema.core :as s])
   (:import javax.mail.Session))
 

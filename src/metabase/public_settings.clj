@@ -9,7 +9,7 @@
             [metabase.public-settings.metastore :as metastore]
             [metabase.util.i18n :refer [available-locales-with-names set-locale]]
             [metabase.util.password :as password]
-            [puppetlabs.i18n.core :as i18n :refer [tru]]
+            [puppetlabs.i18n.core :refer [tru]]
             [toucan.db :as db])
   (:import java.util.Locale
            java.util.TimeZone))
