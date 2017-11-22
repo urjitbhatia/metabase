@@ -22,7 +22,12 @@
              [permissions-group :as perms-group]
              [setting :as setting :refer [defsetting]]]
             [metabase.util.urls :as urls]
+<<<<<<< HEAD
             [puppetlabs.i18n.core :refer [tru trs]]
+=======
+            [puppetlabs.i18n.core :as i18n :refer [tru]]
+            [puppetlabs.i18n.core :as i18n :refer [trs]]
+>>>>>>> b5fb22e14e3b96cb8a0a2e9ff8ef5caf1e36c3e7
             [throttle.core :as throttle]
             [toucan.db :as db]))
 
