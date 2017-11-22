@@ -15,12 +15,6 @@
              [ssh :as ssh]])
   (:import java.util.UUID))
 
-(def ^:private ^:dynamic *enum-types*
-  "Bound to a set of keyword enum types defined for this Database. Bound by `sync-in-context` (see below). This is
-   used so we can properly tag things of enum types as `:type/PostgresEnum` derivatives when we fetch metadata about
-   Fields."
-  nil)
-
 (def ^:private ^:const default-base-types
   "Map of default Postgres column types -> Field base types.
    Add more mappings here as you come across them."
@@ -88,8 +82,8 @@
    `:type/PostgresEnum`. We'll give it a name like `:type/PostgresEnum.color`. This is effectively a way to
    encode the name of the enum type inside the type keyword itself, since we'll need to use it for casting,
    e.g. `?::color` in queries."
-  [column]
-  (when (contains? *enum-types* column)
+  [enum-types column]
+  (when (contains? enum-types column)
     (let [custom-type (keyword (str "type/PostgresEnum." (name column)))]
       (types/add-custom-type! custom-type :type/PostgresEnum)
       custom-type)))
@@ -97,8 +91,8 @@
 (defn- column->base-type
   "Actual implementation of `column->base-type`. Takes into account `*enum-types*` when bound, otherwise falls
    back to the static `default-base-types` map above."
-  [column]
-  (or (enum-base-type column)
+  [driver column]
+  (or (enum-base-type (:enum-types driver) column)
       (default-base-types column)))
 
 (defn- column->special-type
@@ -229,12 +223,10 @@
                           "LEFT JOIN pg_type t "
                           "  ON t.oid = e.enumtypid")]))))
 
-
-(defn- sync-in-context [database f]
-  ;; The only thing our implementation of `sync-in-context` does is fetch the enum types and bind them to
-  ;; `*enum-types*` so they're available when we map native column types -> MB types
-  (binding [*enum-types* (enum-types database)]
-    (f)))
+(defn- describe-table [driver database table]
+  ;; fetch the enum types and add them to `driver` so we have access to them. Then hand off to the default
+  ;; implementation
+  (sql/describe-table (assoc driver :enum-types (enum-types database)) database table))
 
 
 (defrecord PostgresDriver []
@@ -247,7 +239,7 @@
 (def PostgresISQLDriverMixin
   "Implementations of `ISQLDriver` methods for `PostgresDriver`."
   (merge (sql/ISQLDriverDefaultsMixin)
-         {:column->base-type         (u/drop-first-arg column->base-type)
+         {:column->base-type         column->base-type
           :column->special-type      (u/drop-first-arg column->special-type)
           :connection-details->spec  (u/drop-first-arg connection-details->spec)
           :date                      (u/drop-first-arg date)
@@ -261,6 +253,7 @@
   (merge (sql/IDriverSQLDefaultsMixin)
          {:current-db-time                   (driver/make-current-db-time-fn pg-date-formatter pg-db-time-query)
           :date-interval                     (u/drop-first-arg date-interval)
+          :describe-table                    describe-table
           :details-fields                    (constantly (ssh/with-tunnel-config
                                                            [{:name         "host"
                                                              :display-name "Host"
@@ -288,8 +281,7 @@
                                                             {:name         "additional-options"
                                                              :display-name "Additional JDBC connection string options"
                                                              :placeholder  "prepareThreshold=0"}]))
-          :humanize-connection-error-message (u/drop-first-arg humanize-connection-error-message)
-          :sync-in-context                   (u/drop-first-arg sync-in-context)})
+          :humanize-connection-error-message (u/drop-first-arg humanize-connection-error-message)})
 
   sql/ISQLDriver PostgresISQLDriverMixin)
 

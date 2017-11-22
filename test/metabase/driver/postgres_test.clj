@@ -337,6 +337,22 @@
     (fn [db]
       (#'postgres/enum-types db))))
 
+(expect-with-engine :postgres
+  {:name   "birds"
+   :fields #{{:name      "name",
+              :custom    {:column-type "varchar"}
+              :base-type :type/Text
+              :pk?       true}
+             {:name      "status"
+              :custom    {:column-type "bird_status"}
+              :base-type :type/PostgresEnum.bird_status}
+             {:name      "type"
+              :custom    {:column-type "bird type"}
+              :base-type (keyword "type/PostgresEnum.bird type")}}}
+  (do-with-enums-db
+    (fn [db]
+      (driver/describe-table pg-driver db {:name "birds"}))))
+
 ;; check that when syncing the DB the enum types get recorded appropriately
 (expect-with-engine :postgres
   #{{:name "name",   :base_type :type/Text}
