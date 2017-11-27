@@ -78,9 +78,9 @@
                      :padding-top   :8px}))
 
 (def ^:private RenderedPulseCard
+  "Schema used for functions that operate on pulse card contents and their attachments"
   {:attachments (s/maybe {s/Str URL})
    :content [s/Any]})
-
 
 ;;; # ------------------------------------------------------------ HELPER FNS ------------------------------------------------------------
 
@@ -90,8 +90,8 @@
      (style {:font-weight 400, :color \"white\"}) -> \"font-weight: 400; color: white;\""
   [& style-maps]
   (str/join " " (for [[k v] (into {} style-maps)
-                    :let  [v (if (keyword? v) (name v) v)]]
-                (str (name k) ": " v ";"))))
+                      :let  [v (if (keyword? v) (name v) v)]]
+                  (str (name k) ": " v ";"))))
 
 
 (defn- datetime-field?
@@ -346,23 +346,23 @@
 (s/defn ^:private render:table :- RenderedPulseCard
   [timezone card {:keys [cols rows] :as data}]
   {:attachments nil
-   :content [:div
-             (render-table (prep-for-html-rendering timezone cols rows nil nil cols-limit))
-             (render-truncation-warning cols-limit (count cols) rows-limit (count rows))]})
+   :content     [:div
+                 (render-table (prep-for-html-rendering timezone cols rows nil nil cols-limit))
+                 (render-truncation-warning cols-limit (count cols) rows-limit (count rows))]})
 
 (s/defn ^:private render:bar :- RenderedPulseCard
   [timezone card {:keys [cols rows] :as data}]
   (let [max-value (apply max (map second rows))]
     {:attachments nil
-     :content [:div
-               (render-table (prep-for-html-rendering timezone cols rows second max-value 2))
-               (render-truncation-warning 2 (count cols) rows-limit (count rows))]}))
+     :content     [:div
+                   (render-table (prep-for-html-rendering timezone cols rows second max-value 2))
+                   (render-truncation-warning 2 (count cols) rows-limit (count rows))]}))
 
 (s/defn ^:private render:scalar
   [timezone card {:keys [cols rows]}]
   {:attachments nil
-   :content [:div {:style (style scalar-style)}
-             (h (format-cell timezone (ffirst rows) (first cols)))]})
+   :content     [:div {:style (style scalar-style)}
+                 (h (format-cell timezone (ffirst rows) (first cols)))]})
 
 (defn- render-sparkline-to-png
   "Takes two arrays of numbers between 0 and 1 and plots them as a sparkline"
@@ -461,42 +461,42 @@
 
     {:attachments (when (and content-id png-url)
                     {content-id png-url})
-     :content [:div
-               [:img {:style (style {:display :block
-                                     :width :100%})
-                      :src   (content-id-reference content-id)}]
-               [:table
-                [:tr
-                 [:td {:style (style {:color         color-brand
-                                      :font-size     :24px
-                                      :font-weight   700
-                                      :padding-right :16px})}
-                  (first values)]
-                 [:td {:style (style {:color       color-gray-3
-                                      :font-size   :24px
-                                      :font-weight 700})}
-                  (second values)]]
-                [:tr
-                 [:td {:style (style {:color         color-brand
-                                      :font-size     :16px
-                                      :font-weight   700
-                                      :padding-right :16px})}
-                  (first labels)]
-                 [:td {:style (style {:color     color-gray-3
-                                      :font-size :16px})}
-                  (second labels)]]]]}))
+     :content     [:div
+                   [:img {:style (style {:display :block
+                                         :width :100%})
+                          :src   (content-id-reference content-id)}]
+                   [:table
+                    [:tr
+                     [:td {:style (style {:color         color-brand
+                                          :font-size     :24px
+                                          :font-weight   700
+                                          :padding-right :16px})}
+                      (first values)]
+                     [:td {:style (style {:color       color-gray-3
+                                          :font-size   :24px
+                                          :font-weight 700})}
+                      (second values)]]
+                    [:tr
+                     [:td {:style (style {:color         color-brand
+                                          :font-size     :16px
+                                          :font-weight   700
+                                          :padding-right :16px})}
+                      (first labels)]
+                     [:td {:style (style {:color     color-gray-3
+                                          :font-size :16px})}
+                      (second labels)]]]]}))
 
 (s/defn ^:private render:empty :- RenderedPulseCard
   [_ _]
   (let [[content-id no-results-url] @no-results-image]
     {:attachments (when (and content-id no-results-url)
                     {content-id no-results-url})
-     :content [:div {:style (style {:text-align :center})}
-               [:img {:style (style {:width :104px})
-                      :src   (content-id-reference content-id)}]
-               [:div {:style (style {:margin-top :8px
-                                     :color      color-gray-4})}
-                "No results"]]}))
+     :content     [:div {:style (style {:text-align :center})}
+                   [:img {:style (style {:width :104px})
+                          :src   (content-id-reference content-id)}]
+                   [:div {:style (style {:margin-top :8px
+                                         :color      color-gray-4})}
+                    "No results"]]}))
 
 (defn detect-pulse-card-type
   "Determine the pulse (visualization) type of a CARD, e.g. `:scalar` or `:bar`."
@@ -529,17 +529,17 @@
                                   @external-link-image)]
       {:attachments (when (and content-id link-url)
                       {content-id link-url})
-       :content [:table {:style (style {:margin-bottom :8px
-                                        :width         :100%})}
-                 [:tbody
-                  [:tr
-                   [:td [:span {:style header-style}
-                         (-> card :name h)]]
-                   [:td {:style (style {:text-align :right})}
-                    (when *include-buttons*
-                      [:img {:style (style {:width :16px})
-                             :width 16
-                             :src   (content-id-reference content-id)}])]]]]})))
+       :content     [:table {:style (style {:margin-bottom :8px
+                                            :width         :100%})}
+                     [:tbody
+                      [:tr
+                       [:td [:span {:style header-style}
+                             (-> card :name h)]]
+                       [:td {:style (style {:text-align :right})}
+                        (when *include-buttons*
+                          [:img {:style (style {:width :16px})
+                                 :width 16
+                                 :src   (content-id-reference content-id)}])]]]]})))
 
 (s/defn ^:private render-pulse-card-body :- RenderedPulseCard
   [timezone card {:keys [data error]}]
@@ -570,15 +570,15 @@
   (let [{title :content title-attachments :attachments} (make-title-if-needed card)
         {pulse-body :content body-attachments :attachments} (render-pulse-card-body timezone card results)]
     {:attachments (merge title-attachments body-attachments)
-     :content [:a {:href   (card-href card)
-                   :target "_blank"
-                   :style  (style section-style
-                                  {:margin          :16px
-                                   :margin-bottom   :16px
-                                   :display         :block
-                                   :text-decoration :none})}
-               title
-               pulse-body]}))
+     :content     [:a {:href   (card-href card)
+                       :target "_blank"
+                       :style  (style section-style
+                                      {:margin          :16px
+                                       :margin-bottom   :16px
+                                       :display         :block
+                                       :text-decoration :none})}
+                   title
+                   pulse-body]}))
 
 (defn render-pulse-card-for-display
   "Same as `render-pulse-card` but isn't intended for an email, rather for previewing so there is no need for
@@ -592,13 +592,13 @@
   (let [{:keys [attachments content]} (binding [*include-title* true]
                                         (render-pulse-card timezone card result))]
     {:attachments attachments
-     :content [:div {:style (style {:margin-top       :10px
-                                    :margin-bottom    :20px
-                                    :border           "1px solid #dddddd"
-                                    :border-radius    :2px
-                                    :background-color :white
-                                    :box-shadow       "0 1px 2px rgba(0, 0, 0, .08)"})}
-               content]}))
+     :content     [:div {:style (style {:margin-top       :10px
+                                        :margin-bottom    :20px
+                                        :border           "1px solid #dddddd"
+                                        :border-radius    :2px
+                                        :background-color :white
+                                        :box-shadow       "0 1px 2px rgba(0, 0, 0, .08)"})}
+                   content]}))
 
 (defn render-pulse-card-to-png
   "Render a PULSE-CARD as a PNG. DATA is the `:data` from a QP result (I think...)"

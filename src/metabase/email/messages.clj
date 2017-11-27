@@ -192,15 +192,14 @@
           :logoFooter   true}
          (random-quote-context)))
 
-(defn- render-message-body
-  [message-template message-context timezone results]
+(defn- render-message-body [message-template message-context timezone results]
   (let [rendered-cards (binding [render/*include-title* true]
-                         (for [result results]
-                           (render/render-pulse-section timezone result)))
+                         ;; doall to ensure we haven't exited the binding before the valures are created
+                         (doall (map #(render/render-pulse-section timezone %) results)))
         message-body   (assoc message-context :pulse (html (vec (cons :div (map :content rendered-cards)))))
         attachments    (apply merge (map :attachments rendered-cards))]
     (vec (cons {:type "text/html; charset=utf-8" :content (stencil/render-file message-template message-body)}
-             (map make-message-attachment attachments)))))
+               (map make-message-attachment attachments)))))
 
 (defn render-pulse-email
   "Take a pulse object and list of results, returns an array of attachment objects for an email"
