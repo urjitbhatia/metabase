@@ -11,6 +11,7 @@
             [hiccup.core :refer [h html]]
             [metabase.util :as u]
             [metabase.util.urls :as urls]
+            [puppetlabs.i18n.core :refer [tru trs]]
             [schema.core :as s])
   (:import cz.vutbr.web.css.MediaSpec
            [java.awt BasicStroke Color Dimension RenderingHints]
@@ -390,7 +391,7 @@
                  (* 2 sparkline-dot-radius)
                  (* 2 sparkline-dot-radius)))
     (when-not (ImageIO/write image "png" os)                    ; returns `true` if successful -- see JavaDoc
-      (throw (Exception. "No approprate image writer found!")))
+      (throw (Exception. (tru "No approprate image writer found!"))))
     (.toByteArray os)))
 
 (defn- hash-bytes
@@ -545,7 +546,7 @@
   [timezone card {:keys [data error]}]
   (try
     (when error
-      (throw (Exception. (str "Card has errors: " error))))
+      (throw (Exception. (tru "Card has errors: {0}" error))))
     (case (detect-pulse-card-type card data)
       :empty     (render:empty     card data)
       :scalar    (render:scalar    timezone card data)
@@ -557,7 +558,7 @@
                             :font-weight 700})}
        "We were unable to display this card." [:br] "Please view this card in Metabase."])
     (catch Throwable e
-      (log/warn "Pulse card render error:" e)
+      (log/warn e (trs "Pulse card render error"))
       [:div {:style (style font-style
                            {:color       "#EF8C8C"
                             :font-weight 700
