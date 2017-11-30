@@ -182,12 +182,32 @@
     (.stop ^Server @jetty-instance)
     (reset! jetty-instance nil)))
 
+(defn- wrap-with-asterisk [s]
+  ;; Adding 4 extra asterisks so that we account for the leading asterisk and space, and add two more after the end of the sentence
+  (let [string-length (+ 4 (count s))]
+    (str (apply str (repeat string-length \* ))
+         "\n"
+         "*\n"
+         "* " s "\n"
+         "*\n"
+         (apply str (repeat string-length \* )))))
+
+(defn- check-jdk-version []
+  (let [java-spec-version (System/getProperty "java.specification.version")]
+    (when (= "1.7" java-spec-version)
+      (let [java-version (System/getProperty "java.version")
+            deprecation-message (str "DEPRECATION WARNING: You are currently running JDK '" java-version "'. "
+                                     "Support for JDK 1.7 has been deprecated and will be dropped from a future release.")]
+        (binding [*out* *err*]
+          (println (wrap-with-asterisk deprecation-message))
+          (log/warn deprecation-message))))))
 
 ;;; ## ---------------------------------------- Normal Start ----------------------------------------
 
 (defn- start-normally []
   (log/info "Starting Metabase in STANDALONE mode")
   (try
+    (check-jdk-version)
     ;; launch embedded webserver async
     (start-jetty!)
     ;; run our initialization process
